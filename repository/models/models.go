@@ -11,4 +11,5 @@ type ConfigInclude struct {
 	Arabic        bool `db:"arabic"`
 	Russian       bool `db:"russian"`
 	Transcription bool `db:"transcription"`
+	Audio         bool `db:"audio"`
 }

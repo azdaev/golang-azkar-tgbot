@@ -27,7 +27,8 @@ func (repo *AzkarRepository) LastEveningIndex(userId int64) (index int, err erro
 }
 
 func (repo *AzkarRepository) User(userId int64) (user *models.User, err error) {
-	err = repo.db.Get(&user, "SELECT * FROM users where id = $1", userId)
+	user = &models.User{}
+	err = repo.db.Get(user, "SELECT * FROM users where id = $1", userId)
 	return
 }
 
@@ -48,7 +49,7 @@ func (repo *AzkarRepository) SetEveningIndex(userId int64, index int) (err error
 
 func (repo *AzkarRepository) Config(userId int64) (config *models.ConfigInclude, err error) {
 	config = &models.ConfigInclude{}
-	err = repo.db.Get(config, "SELECT arabic, russian, transcription FROM configs WHERE user_id = $1", userId)
+	err = repo.db.Get(config, "SELECT arabic, russian, transcription, audio FROM configs WHERE user_id = $1", userId)
 	return
 }
 

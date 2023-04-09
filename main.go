@@ -6,13 +6,16 @@ import (
 	"github.com/azdaev/azkar-tg-bot/service"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jmoiron/sqlx"
+	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 	"log"
+	"os"
 	"strings"
 )
 
 func main() {
-	TOKEN := `6089055911:AAFOXlJnJ0wXJCVeY8Tzp_Yzn7MwlNkNHDw`
+	godotenv.Load()
+	TOKEN := os.Getenv("TOKEN")
 
 	db, err := sqlx.Connect("sqlite3", "repository/azkar")
 	if err != nil {
@@ -57,18 +60,17 @@ func main() {
 
 			err = service.EnsureUser(azkarRepository, m.From.ID) // save user to db if not exists
 			if err != nil {
-				log.Println(err)
+				log.Printf("error ensure user: %s\n", err)
 			}
 
 			config, err := azkarRepository.Config(m.From.ID) // config: what to print out
-			log.Println("__________---------------------_", config)
 			if err != nil {
-				log.Println(err)
+				log.Printf("error get config: %s\n", err)
 			}
 			if config == nil {
 				err := azkarRepository.InsertConfig(m.From.ID)
 				if err != nil {
-					log.Println(err)
+					log.Printf("error create config: %s\n", err)
 				}
 
 				config, _ = azkarRepository.Config(m.From.ID)
@@ -79,7 +81,7 @@ func main() {
 			switch command := m.Command(); command {
 			case "start":
 				messageText := "السلام عليكم ورحمة الله وبركاته \n\n"
-				messageText += "Прочитать утренние азкары - /morning\nПрочитать вечерние азкары - /evening"
+				messageText += "Прочитать утренние азкары - /morning\nПрочитать вечерние азкары - /evening\nНастроить вывод - /settings"
 				bot.Send(tgbotapi.NewMessage(m.Chat.ID, messageText))
 				continue
 
@@ -87,10 +89,15 @@ func main() {
 				response = tgbotapi.NewMessage(m.Chat.ID, azkar.Wrap(config, 0, true))
 				err := azkarRepository.SetMorningIndex(m.From.ID, 0)
 				if err != nil {
-					log.Println(err)
+					log.Printf("error set morning index: %s\n", err)
 				}
+
 				response.ReplyMarkup = service.OnlyNextKeyboard
 				bot.Send(response)
+
+				if !config.Audio {
+					continue
+				}
 
 				audio := tgbotapi.NewAudio(m.Chat.ID, tgbotapi.FilePath("media/morning/0.mp3"))
 				audio.Title = "Утренний зикр №1"
@@ -100,10 +107,15 @@ func main() {
 				response = tgbotapi.NewMessage(m.Chat.ID, azkar.Wrap(config, 0, false))
 				err := azkarRepository.SetEveningIndex(m.From.ID, 0)
 				if err != nil {
-					log.Println(err)
+					log.Printf("error set evening index: %s\n", err)
 				}
+
 				response.ReplyMarkup = service.OnlyNextKeyboard
 				bot.Send(response)
+
+				if !config.Audio {
+					continue
+				}
 
 				audio := tgbotapi.NewAudio(m.Chat.ID, tgbotapi.FilePath("media/evening/0.mp3"))
 				audio.Title = "Вечерний зикр №1"
@@ -122,7 +134,7 @@ func main() {
 			case strings.HasPrefix(update.CallbackQuery.Data, "set"):
 				err := service.HandleConfigEdit(bot, update.CallbackQuery, azkarRepository)
 				if err != nil {
-					log.Println(err)
+					log.Printf("error handle config edit: %s\n", err)
 				}
 			}
 		}

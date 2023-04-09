@@ -1,6 +1,7 @@
 package service
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/azdaev/azkar-tg-bot/azkar"
 	"github.com/azdaev/azkar-tg-bot/repository"
@@ -31,21 +32,20 @@ var BothSidesKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 )
 
 func EnsureUser(repo *repository.AzkarRepository, id int64) (err error) {
-	user, err := repo.User(id)
+	_, err = repo.User(id)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+
+	err = repo.NewUser(id)
+	fmt.Println("creating user")
 	if err != nil {
 		return
 	}
 
-	if user == nil {
-		err = repo.NewUser(id)
-		if err != nil {
-			return
-		}
-
-		err = repo.InsertConfig(id)
-		if err != nil {
-			return
-		}
+	err = repo.InsertConfig(id)
+	if err != nil {
+		return
 	}
 
 	return
@@ -88,6 +88,7 @@ func ConfigKeyboard(config *models.ConfigInclude) *tgbotapi.InlineKeyboardMarkup
 		tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Оригинал "+m[config.Arabic], fmt.Sprintf("set %s %v", "arabic", !config.Arabic))),
 		tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Перевод "+m[config.Russian], fmt.Sprintf("set %s %v", "russian", !config.Russian))),
 		tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Транскрипция "+m[config.Transcription], fmt.Sprintf("set %s %v", "transcription", !config.Transcription))),
+		tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Аудио "+m[config.Audio], fmt.Sprintf("set %s %v", "audio", !config.Audio))),
 	)
 
 	return &keyboard
@@ -157,6 +158,10 @@ func HandleDirection(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.CallbackQuery
 
 	bot.Send(editedMessage)
 
+	if !config.Audio {
+		return
+	}
+
 	audioFilePath := "media/"
 	audioTitle := ""
 
@@ -173,7 +178,6 @@ func HandleDirection(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.CallbackQuery
 	audio := tgbotapi.NewAudio(sourceMessage.Chat.ID, tgbotapi.FilePath(audioFilePath))
 
 	audio.Title = audioTitle + strconv.Itoa(newZikrIndex+1)
-	//audio.Caption = azkar.Wrap(config, newZikrIndex, isMorning)
 	bot.Send(audio)
 }
 
