@@ -1,0 +1,130 @@
+package main
+
+import (
+	"github.com/azdaev/azkar-tg-bot/azkar"
+	"github.com/azdaev/azkar-tg-bot/repository"
+	"github.com/azdaev/azkar-tg-bot/service"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/mattn/go-sqlite3"
+	"log"
+	"strings"
+)
+
+func main() {
+	TOKEN := `6089055911:AAFOXlJnJ0wXJCVeY8Tzp_Yzn7MwlNkNHDw`
+
+	db, err := sqlx.Connect("sqlite3", "repository/azkar")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	azkarRepository := repository.NewAzkarRepository(db)
+
+	bot, err := tgbotapi.NewBotAPI(TOKEN)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	menu := tgbotapi.NewSetMyCommands(
+		tgbotapi.BotCommand{
+			Command:     "/morning",
+			Description: "Утренние азкары",
+		},
+		tgbotapi.BotCommand{
+			Command:     "/evening",
+			Description: "Вечерние азкары",
+		},
+		tgbotapi.BotCommand{
+			Command:     "/settings",
+			Description: "Настройки вывода",
+		},
+	)
+
+	_, _ = bot.Request(menu)
+
+	bot.Debug = true
+
+	log.Printf("Authorized on account %s", bot.Self.UserName)
+
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+
+	updates := bot.GetUpdatesChan(u)
+
+	for update := range updates {
+		if update.Message != nil { // If we got a message
+			m := update.Message
+
+			err = service.EnsureUser(azkarRepository, m.From.ID) // save user to db if not exists
+			if err != nil {
+				log.Println(err)
+			}
+
+			config, err := azkarRepository.Config(m.From.ID) // config: what to print out
+			log.Println("__________---------------------_", config)
+			if err != nil {
+				log.Println(err)
+			}
+			if config == nil {
+				err := azkarRepository.InsertConfig(m.From.ID)
+				if err != nil {
+					log.Println(err)
+				}
+
+				config, _ = azkarRepository.Config(m.From.ID)
+			}
+
+			var response tgbotapi.MessageConfig
+
+			switch command := m.Command(); command {
+			case "start":
+				messageText := "السلام عليكم ورحمة الله وبركاته \n\n"
+				messageText += "Прочитать утренние азкары - /morning\nПрочитать вечерние азкары - /evening"
+				bot.Send(tgbotapi.NewMessage(m.Chat.ID, messageText))
+				continue
+
+			case "morning": // TODO: export to another function
+				response = tgbotapi.NewMessage(m.Chat.ID, azkar.Wrap(config, 0, true))
+				err := azkarRepository.SetMorningIndex(m.From.ID, 0)
+				if err != nil {
+					log.Println(err)
+				}
+				response.ReplyMarkup = service.OnlyNextKeyboard
+				bot.Send(response)
+
+				audio := tgbotapi.NewAudio(m.Chat.ID, tgbotapi.FilePath("media/morning/0.mp3"))
+				audio.Title = "Утренний зикр №1"
+				bot.Send(audio)
+
+			case "evening": // TODO: export to another function
+				response = tgbotapi.NewMessage(m.Chat.ID, azkar.Wrap(config, 0, false))
+				err := azkarRepository.SetEveningIndex(m.From.ID, 0)
+				if err != nil {
+					log.Println(err)
+				}
+				response.ReplyMarkup = service.OnlyNextKeyboard
+				bot.Send(response)
+
+				audio := tgbotapi.NewAudio(m.Chat.ID, tgbotapi.FilePath("media/evening/0.mp3"))
+				audio.Title = "Вечерний зикр №1"
+				bot.Send(audio)
+
+			case "settings":
+				response = tgbotapi.NewMessage(m.Chat.ID, "Выберите что требуется выводить")
+				response.ReplyMarkup = service.ConfigKeyboard(config)
+				bot.Send(response)
+			}
+
+		} else if update.CallbackQuery != nil {
+			switch {
+			case update.CallbackQuery.Data == "previous" || update.CallbackQuery.Data == "next":
+				service.HandleDirection(bot, update.CallbackQuery, azkarRepository)
+			case strings.HasPrefix(update.CallbackQuery.Data, "set"):
+				err := service.HandleConfigEdit(bot, update.CallbackQuery, azkarRepository)
+				if err != nil {
+					log.Println(err)
+				}
+			}
+		}
+	}
+}
