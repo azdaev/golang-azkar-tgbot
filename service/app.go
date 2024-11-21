@@ -3,80 +3,56 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"strconv"
+	"strings"
+
 	"github.com/azdaev/azkar-tg-bot/azkar"
 	"github.com/azdaev/azkar-tg-bot/repository"
 	"github.com/azdaev/azkar-tg-bot/repository/models"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"log"
-	"strconv"
-	"strings"
 )
 
-var OnlyNextKeyboard = tgbotapi.NewInlineKeyboardMarkup(
-	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("➡️", "next"),
-	),
+var (
+	OnlyNextKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("➡️", "next"),
+		),
+	)
+
+	OnlyPreviousKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("⬅️", "previous"),
+		),
+	)
+
+	BothSidesKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("⬅️", "previous"),
+			tgbotapi.NewInlineKeyboardButtonData("➡️", "next"),
+		),
+	)
 )
 
-var OnlyPreviousKeyboard = tgbotapi.NewInlineKeyboardMarkup(
-	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("⬅️", "previous"),
-	),
-)
-
-var BothSidesKeyboard = tgbotapi.NewInlineKeyboardMarkup(
-	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("⬅️", "previous"),
-		tgbotapi.NewInlineKeyboardButtonData("➡️", "next"),
-	),
-)
-
-func EnsureUser(repo *repository.AzkarRepository, id int64) (err error) {
-	_, err = repo.User(id)
-	if err != nil && err != sql.ErrNoRows {
-		return err
+func EnsureUser(repo *repository.AzkarRepository, id int64) error {
+	_, err := repo.User(id)
+	if err == nil {
+		return nil
+	}
+	if err != sql.ErrNoRows {
+		return fmt.Errorf("failed to check user existence: %w", err)
 	}
 
-	err = repo.NewUser(id)
-	fmt.Println("creating user")
-	if err != nil {
-		return
+	if err := repo.NewUser(id); err != nil {
+		return fmt.Errorf("failed to create new user: %w", err)
 	}
 
-	err = repo.InsertConfig(id)
-	if err != nil {
-		return
+	if err := repo.InsertConfig(id); err != nil {
+		return fmt.Errorf("failed to insert config for user: %w", err)
 	}
 
-	return
+	return nil
 }
-
-//func PrettyConfig(config *models.ConfigInclude) string {
-//	result := "Выберите, что требуется выводить:\n\n"
-//
-//	result += "Оригинал - "
-//	if !config.Arabic {
-//		result += "❌\n"
-//	} else {
-//		result += "✅\n"
-//	}
-//
-//	result += "Перевод - "
-//	if !config.Russian {
-//		result += "❌\n"
-//	} else {
-//		result += "✅\n"
-//	}
-//
-//	result += "Транскрипция - "
-//	if !config.Transcription {
-//		result += "❌\n"
-//	} else {
-//		result += "✅\n"
-//	}
-//
-//	return result
-//}
 
 func ConfigKeyboard(config *models.ConfigInclude) *tgbotapi.InlineKeyboardMarkup {
 	m := map[bool]string{
@@ -118,6 +94,7 @@ func HandleDirection(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.CallbackQuery
 	config, err := azkarRepository.Config(userId)
 	if err != nil {
 		log.Println(err)
+		return
 	}
 
 	if isMorning {
@@ -152,6 +129,7 @@ func HandleDirection(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.CallbackQuery
 	}
 	if err != nil {
 		log.Println(err)
+		return
 	}
 
 	SetDirectionKeyboard(&editedMessage, newZikrIndex, len(currentAzkarSlice))
