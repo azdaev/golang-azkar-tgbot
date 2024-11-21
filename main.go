@@ -1,31 +1,28 @@
 package main
 
 import (
+	"log"
+	"os"
+	"strings"
+
 	"github.com/azdaev/azkar-tg-bot/azkar"
 	"github.com/azdaev/azkar-tg-bot/repository"
 	"github.com/azdaev/azkar-tg-bot/service"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jmoiron/sqlx"
-	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
-	"log"
-	"os"
-	"strings"
 )
 
 func main() {
-	godotenv.Load()
-	TOKEN := os.Getenv("TOKEN")
-
 	db, err := sqlx.Connect("sqlite3", "repository/azkar")
 	if err != nil {
 		log.Fatalln(err)
 	}
 	azkarRepository := repository.NewAzkarRepository(db)
 
-	bot, err := tgbotapi.NewBotAPI(TOKEN)
+	bot, err := tgbotapi.NewBotAPI(os.Getenv("TG_BOT_TOKEN"))
 	if err != nil {
-		log.Panic(err)
+		log.Fatal(err)
 	}
 
 	menu := tgbotapi.NewSetMyCommands(
