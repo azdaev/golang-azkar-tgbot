@@ -142,7 +142,9 @@ func Wrap(config *models.ConfigInclude, index int, isMorning bool) string {
 	sb.WriteString(fmt.Sprintf("№%d\n\n", index+1))
 
 	if config.Arabic {
+		sb.WriteString("<b>")
 		sb.WriteString(zikr.Arabic)
+		sb.WriteString("</b>")
 		sb.WriteString("\n\n")
 	}
 

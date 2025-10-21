@@ -121,6 +121,7 @@ func HandleDirection(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.CallbackQuery
 		sourceMessage.MessageID,
 		azkar.Wrap(config, newZikrIndex, isMorning),
 	)
+	editedMessage.ParseMode = "HTML"
 
 	if isMorning {
 		err = azkarRepository.SetMorningIndex(userId, newZikrIndex)

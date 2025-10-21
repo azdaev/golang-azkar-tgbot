@@ -84,6 +84,7 @@ func main() {
 
 			case "morning": // TODO: export to another function
 				response = tgbotapi.NewMessage(m.Chat.ID, azkar.Wrap(config, 0, true))
+				response.ParseMode = "HTML"
 				err := azkarRepository.SetMorningIndex(m.From.ID, 0)
 				if err != nil {
 					log.Printf("error set morning index: %s\n", err)
@@ -102,6 +103,7 @@ func main() {
 
 			case "evening": // TODO: export to another function
 				response = tgbotapi.NewMessage(m.Chat.ID, azkar.Wrap(config, 0, false))
+				response.ParseMode = "HTML"
 				err := azkarRepository.SetEveningIndex(m.From.ID, 0)
 				if err != nil {
 					log.Printf("error set evening index: %s\n", err)
