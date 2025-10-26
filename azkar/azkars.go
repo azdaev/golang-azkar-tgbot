@@ -127,7 +127,7 @@ func CurrentAzkarSlice(isMorning bool) []Zikr {
 	return EveningAzkar
 }
 
-func Wrap(config *models.ConfigInclude, index int, isMorning bool) string {
+func Wrap(config *models.UserConfig, index int, isMorning bool) string {
 	var sb strings.Builder
 	var zikr Zikr
 
