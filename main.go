@@ -8,6 +8,7 @@ import (
 	"github.com/azdaev/azkar-tg-bot/azkar"
 	"github.com/azdaev/azkar-tg-bot/repository"
 	"github.com/azdaev/azkar-tg-bot/service"
+	"github.com/azdaev/azkar-tg-bot/service/audio"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
@@ -79,7 +80,9 @@ func main() {
 			case "start":
 				messageText := "السلام عليكم ورحمة الله وبركاته \n\n"
 				messageText += "Прочитать утренние азкары - /morning\nПрочитать вечерние азкары - /evening\nНастроить вывод - /settings"
-				bot.Send(tgbotapi.NewMessage(m.Chat.ID, messageText))
+				response := tgbotapi.NewMessage(m.Chat.ID, messageText)
+				response.ReplyMarkup = service.MorningEveningKeyboard
+				bot.Send(response)
 				continue
 
 			case "morning": // TODO: export to another function
@@ -97,9 +100,10 @@ func main() {
 					continue
 				}
 
-				audio := tgbotapi.NewAudio(m.Chat.ID, tgbotapi.FilePath("media/morning/0.mp3"))
-				audio.Title = "Утренний зикр №1"
-				bot.Send(audio)
+				audioInfo := audio.GetAudioInfo(0, true)
+				audioMsg := tgbotapi.NewAudio(m.Chat.ID, tgbotapi.FilePath(audioInfo.FilePath))
+				audioMsg.Title = audioInfo.Title
+				bot.Send(audioMsg)
 
 			case "evening": // TODO: export to another function
 				response = tgbotapi.NewMessage(m.Chat.ID, azkar.Wrap(config, 0, false))
@@ -116,9 +120,10 @@ func main() {
 					continue
 				}
 
-				audio := tgbotapi.NewAudio(m.Chat.ID, tgbotapi.FilePath("media/evening/0.mp3"))
-				audio.Title = "Вечерний зикр №1"
-				bot.Send(audio)
+				audioInfo := audio.GetAudioInfo(0, false)
+				audioMsg := tgbotapi.NewAudio(m.Chat.ID, tgbotapi.FilePath(audioInfo.FilePath))
+				audioMsg.Title = audioInfo.Title
+				bot.Send(audioMsg)
 
 			case "settings":
 				response = tgbotapi.NewMessage(m.Chat.ID, "Выберите что требуется выводить")
@@ -128,6 +133,8 @@ func main() {
 
 		} else if update.CallbackQuery != nil {
 			switch {
+			case update.CallbackQuery.Data == "show_morning" || update.CallbackQuery.Data == "show_evening":
+				service.HandleMorningEvening(bot, update.CallbackQuery, azkarRepository)
 			case update.CallbackQuery.Data == "previous" || update.CallbackQuery.Data == "next":
 				service.HandleDirection(bot, update.CallbackQuery, azkarRepository)
 			case strings.HasPrefix(update.CallbackQuery.Data, "set"):
