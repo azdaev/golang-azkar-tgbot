@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 
 	"github.com/azdaev/azkar-tg-bot/azkar"
 	"github.com/azdaev/azkar-tg-bot/repository"
 	"github.com/azdaev/azkar-tg-bot/repository/models"
+	"github.com/azdaev/azkar-tg-bot/service/audio"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -148,23 +148,10 @@ func HandleDirection(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.CallbackQuery
 		return
 	}
 
-	audioFilePath := "media/"
-	audioTitle := ""
-
-	if isMorning {
-		audioFilePath += "morning/"
-		audioTitle += "Утренний зикр №"
-	} else {
-		audioFilePath += "evening/"
-		audioTitle += "Вечерний зикр №"
-	}
-
-	audioFilePath += strconv.Itoa(newZikrIndex)
-	audioFilePath += ".mp3"
-	audio := tgbotapi.NewAudio(sourceMessage.Chat.ID, tgbotapi.FilePath(audioFilePath))
-
-	audio.Title = audioTitle + strconv.Itoa(newZikrIndex+1)
-	bot.Send(audio)
+	audioInfo := audio.GetAudioInfo(newZikrIndex, isMorning)
+	audioMsg := tgbotapi.NewAudio(sourceMessage.Chat.ID, tgbotapi.FilePath(audioInfo.FilePath))
+	audioMsg.Title = audioInfo.Title
+	bot.Send(audioMsg)
 }
 
 func HandleConfigEdit(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.CallbackQuery, azkarRepository *repository.AzkarRepository) (err error) {
@@ -235,18 +222,8 @@ func HandleMorningEvening(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.Callback
 		return
 	}
 
-	audioFilePath := "media/"
-	audioTitle := ""
-
-	if isMorning {
-		audioFilePath += "morning/0.mp3"
-		audioTitle = "Утренний зикр №1"
-	} else {
-		audioFilePath += "evening/0.mp3"
-		audioTitle = "Вечерний зикр №1"
-	}
-
-	audio := tgbotapi.NewAudio(chatId, tgbotapi.FilePath(audioFilePath))
-	audio.Title = audioTitle
-	bot.Send(audio)
+	audioInfo := audio.GetAudioInfo(0, isMorning)
+	audioMsg := tgbotapi.NewAudio(chatId, tgbotapi.FilePath(audioInfo.FilePath))
+	audioMsg.Title = audioInfo.Title
+	bot.Send(audioMsg)
 }
