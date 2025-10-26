@@ -129,12 +129,53 @@ func main() {
 				response = tgbotapi.NewMessage(m.Chat.ID, "Выберите что требуется выводить")
 				response.ReplyMarkup = service.ConfigKeyboard(config)
 				bot.Send(response)
+			default:
+				// Handle reply keyboard button presses
+				switch m.Text {
+				case "🌅 Утро":
+					response = tgbotapi.NewMessage(m.Chat.ID, azkar.Wrap(config, 0, true))
+					response.ParseMode = "HTML"
+					err := azkarRepository.SetMorningIndex(m.From.ID, 0)
+					if err != nil {
+						log.Printf("error set morning index: %s\n", err)
+					}
+
+					response.ReplyMarkup = service.OnlyNextKeyboard
+					bot.Send(response)
+
+					if !config.Audio {
+						continue
+					}
+
+					audioInfo := audio.GetAudioInfo(0, true)
+					audioMsg := tgbotapi.NewAudio(m.Chat.ID, tgbotapi.FilePath(audioInfo.FilePath))
+					audioMsg.Title = audioInfo.Title
+					bot.Send(audioMsg)
+
+				case "🌙 Вечер":
+					response = tgbotapi.NewMessage(m.Chat.ID, azkar.Wrap(config, 0, false))
+					response.ParseMode = "HTML"
+					err := azkarRepository.SetEveningIndex(m.From.ID, 0)
+					if err != nil {
+						log.Printf("error set evening index: %s\n", err)
+					}
+
+					response.ReplyMarkup = service.OnlyNextKeyboard
+					bot.Send(response)
+
+					if !config.Audio {
+						continue
+					}
+
+					audioInfo := audio.GetAudioInfo(0, false)
+					audioMsg := tgbotapi.NewAudio(m.Chat.ID, tgbotapi.FilePath(audioInfo.FilePath))
+					audioMsg.Title = audioInfo.Title
+					bot.Send(audioMsg)
+				}
 			}
 
 		} else if update.CallbackQuery != nil {
 			switch {
-			case update.CallbackQuery.Data == "show_morning" || update.CallbackQuery.Data == "show_evening":
-				service.HandleMorningEvening(bot, update.CallbackQuery, azkarRepository)
 			case update.CallbackQuery.Data == "previous" || update.CallbackQuery.Data == "next":
 				service.HandleDirection(bot, update.CallbackQuery, azkarRepository)
 			case strings.HasPrefix(update.CallbackQuery.Data, "set"):
