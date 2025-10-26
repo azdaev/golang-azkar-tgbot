@@ -6,12 +6,9 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go install github.com/pressly/goose/v3/cmd/goose@latest
 
 # Application build stage
-FROM golang:1.23-alpine AS builder
+FROM golang:1.23 AS builder
 
 WORKDIR /app
-
-# Install build dependencies (gcc for CGO - needed for sqlite3)
-RUN apk add --no-cache gcc musl-dev
 
 # Copy go mod files
 COPY go.mod go.sum ./
