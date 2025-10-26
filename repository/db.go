@@ -45,9 +45,9 @@ func (repo *AzkarRepository) SetEveningIndex(userId int64, index int) (err error
 	return
 }
 
-func (repo *AzkarRepository) Config(userId int64) (*models.ConfigInclude, error) {
-	config := &models.ConfigInclude{}
-	err := repo.db.Get(config, "SELECT arabic, russian, transcription, audio FROM configs WHERE user_id=$1", userId)
+func (repo *AzkarRepository) Config(userId int64) (*models.UserConfig, error) {
+	config := &models.UserConfig{}
+	err := repo.db.Get(config, "SELECT arabic, russian, transcription, audio, morning_notification, evening_notification FROM configs WHERE user_id=$1", userId)
 	return config, err
 }
 
@@ -58,5 +58,33 @@ func (repo *AzkarRepository) InsertConfig(userId int64) error {
 
 func (repo *AzkarRepository) UpdateConfig(userId int64, key string, value string) error {
 	_, err := repo.db.Exec("UPDATE configs SET "+key+" = $1 WHERE user_id = $2", value, userId)
+	return err
+}
+
+func (repo *AzkarRepository) GetUsersForMorningNotification() ([]int64, error) {
+	var userIDs []int64
+	err := repo.db.Select(&userIDs,
+		`SELECT u.id FROM users u
+         JOIN configs c ON u.id = c.user_id
+         WHERE c.morning_notification = true AND u.is_blocked = false`)
+	return userIDs, err
+}
+
+func (repo *AzkarRepository) GetUsersForEveningNotification() ([]int64, error) {
+	var userIDs []int64
+	err := repo.db.Select(&userIDs,
+		`SELECT u.id FROM users u
+         JOIN configs c ON u.id = c.user_id
+         WHERE c.evening_notification = true AND u.is_blocked = false`)
+	return userIDs, err
+}
+
+func (repo *AzkarRepository) IncrementAzkarRequestCount(userId int64) error {
+	_, err := repo.db.Exec("UPDATE users SET azkar_request_count = azkar_request_count + 1 WHERE id = $1", userId)
+	return err
+}
+
+func (repo *AzkarRepository) SetBlocked(userId int64, blocked bool) error {
+	_, err := repo.db.Exec("UPDATE users SET is_blocked = $1 WHERE id = $2", blocked, userId)
 	return err
 }

@@ -54,7 +54,7 @@ func EnsureUser(repo *repository.AzkarRepository, id int64) error {
 	return nil
 }
 
-func ConfigKeyboard(config *models.ConfigInclude) *tgbotapi.InlineKeyboardMarkup {
+func ConfigKeyboard(config *models.UserConfig) *tgbotapi.InlineKeyboardMarkup {
 	m := map[bool]string{
 		true:  "✅",
 		false: "❌",
@@ -65,12 +65,31 @@ func ConfigKeyboard(config *models.ConfigInclude) *tgbotapi.InlineKeyboardMarkup
 		tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Перевод "+m[config.Russian], fmt.Sprintf("set %s %v", "russian", !config.Russian))),
 		tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Транскрипция "+m[config.Transcription], fmt.Sprintf("set %s %v", "transcription", !config.Transcription))),
 		tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Аудио "+m[config.Audio], fmt.Sprintf("set %s %v", "audio", !config.Audio))),
+		tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Уведомления 🔔", "notifications")),
 	)
 
 	return &keyboard
 }
 
-func SetConfigKeyboard(message *tgbotapi.EditMessageTextConfig, config *models.ConfigInclude) {
+func NotificationsKeyboard(config *models.UserConfig) *tgbotapi.InlineKeyboardMarkup {
+	m := map[bool]string{
+		true:  "✅",
+		false: "❌",
+	}
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Утренние "+m[config.MorningNotification], fmt.Sprintf("set %s %v", "morning_notification", !config.MorningNotification)),
+			tgbotapi.NewInlineKeyboardButtonData("Вечерние "+m[config.EveningNotification], fmt.Sprintf("set %s %v", "evening_notification", !config.EveningNotification)),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("← Назад", "back_to_settings")),
+	)
+
+	return &keyboard
+}
+
+func SetConfigKeyboard(message *tgbotapi.EditMessageTextConfig, config *models.UserConfig) {
 	message.ReplyMarkup = ConfigKeyboard(config)
 }
 
@@ -187,7 +206,13 @@ func HandleConfigEdit(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.CallbackQuer
 		sourceMessage.Text,
 	)
 
-	SetConfigKeyboard(&editedMessage, config)
+	// Если изменяем настройки уведомлений, показываем NotificationsKeyboard
+	if key == "morning_notification" || key == "evening_notification" {
+		editedMessage.ReplyMarkup = NotificationsKeyboard(config)
+	} else {
+		SetConfigKeyboard(&editedMessage, config)
+	}
+
 	bot.Request(tgbotapi.NewCallback(callbackQuery.ID, "Принято"))
 	bot.Send(editedMessage)
 	return

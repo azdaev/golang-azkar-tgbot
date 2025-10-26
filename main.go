@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/azdaev/azkar-tg-bot/azkar"
 	"github.com/azdaev/azkar-tg-bot/repository"
@@ -11,6 +12,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/robfig/cron/v3"
 )
 
 func main() {
@@ -45,6 +47,30 @@ func main() {
 	bot.Debug = true
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
+
+	// Запустить cron scheduler для рассылки азкаров
+	c := cron.New(cron.WithLocation(time.FixedZone("UTC+3", 3*60*60)))
+
+	// Утренние азкары в 06:00 UTC+3
+	_, err = c.AddFunc("0 6 * * *", func() {
+		log.Println("Starting morning azkar notification")
+		service.SendMorningAzkarToAll(bot, azkarRepository)
+	})
+	if err != nil {
+		log.Printf("error adding morning cron job: %s\n", err)
+	}
+
+	// Вечерние азкары в 18:00 UTC+3
+	_, err = c.AddFunc("0 18 * * *", func() {
+		log.Println("Starting evening azkar notification")
+		service.SendEveningAzkarToAll(bot, azkarRepository)
+	})
+	if err != nil {
+		log.Printf("error adding evening cron job: %s\n", err)
+	}
+
+	c.Start()
+	log.Println("Cron scheduler started")
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -83,9 +109,15 @@ func main() {
 				continue
 
 			case "morning": // TODO: export to another function
+				// Инкремент счётчика запросов
+				err := azkarRepository.IncrementAzkarRequestCount(m.From.ID)
+				if err != nil {
+					log.Printf("error increment azkar request count: %s\n", err)
+				}
+
 				response = tgbotapi.NewMessage(m.Chat.ID, azkar.Wrap(config, 0, true))
 				response.ParseMode = "HTML"
-				err := azkarRepository.SetMorningIndex(m.From.ID, 0)
+				err = azkarRepository.SetMorningIndex(m.From.ID, 0)
 				if err != nil {
 					log.Printf("error set morning index: %s\n", err)
 				}
@@ -94,6 +126,15 @@ func main() {
 				bot.Send(response)
 
 				if !config.Audio {
+					// Показать предложение о уведомлениях если нужно
+					if service.ShouldShowNotificationSuggestion(azkarRepository, m.From.ID, config) {
+						suggestion := tgbotapi.NewMessage(m.Chat.ID,
+							"💡 Хотите получать азкары автоматически каждый день?\nУтренние в 06:00, вечерние в 18:00")
+						suggestion.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+							tgbotapi.NewInlineKeyboardRow(
+								tgbotapi.NewInlineKeyboardButtonData("Настроить уведомления", "notifications")))
+						bot.Send(suggestion)
+					}
 					continue
 				}
 
@@ -101,10 +142,26 @@ func main() {
 				audio.Title = "Утренний зикр №1"
 				bot.Send(audio)
 
+				// Показать предложение о уведомлениях если нужно
+				if service.ShouldShowNotificationSuggestion(azkarRepository, m.From.ID, config) {
+					suggestion := tgbotapi.NewMessage(m.Chat.ID,
+						"💡 Хотите получать азкары автоматически каждый день?\nУтренние в 06:00, вечерние в 18:00")
+					suggestion.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+						tgbotapi.NewInlineKeyboardRow(
+							tgbotapi.NewInlineKeyboardButtonData("Настроить уведомления", "notifications")))
+					bot.Send(suggestion)
+				}
+
 			case "evening": // TODO: export to another function
+				// Инкремент счётчика запросов
+				err := azkarRepository.IncrementAzkarRequestCount(m.From.ID)
+				if err != nil {
+					log.Printf("error increment azkar request count: %s\n", err)
+				}
+
 				response = tgbotapi.NewMessage(m.Chat.ID, azkar.Wrap(config, 0, false))
 				response.ParseMode = "HTML"
-				err := azkarRepository.SetEveningIndex(m.From.ID, 0)
+				err = azkarRepository.SetEveningIndex(m.From.ID, 0)
 				if err != nil {
 					log.Printf("error set evening index: %s\n", err)
 				}
@@ -113,12 +170,31 @@ func main() {
 				bot.Send(response)
 
 				if !config.Audio {
+					// Показать предложение о уведомлениях если нужно
+					if service.ShouldShowNotificationSuggestion(azkarRepository, m.From.ID, config) {
+						suggestion := tgbotapi.NewMessage(m.Chat.ID,
+							"💡 Хотите получать азкары автоматически каждый день?\nУтренние в 06:00, вечерние в 18:00")
+						suggestion.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+							tgbotapi.NewInlineKeyboardRow(
+								tgbotapi.NewInlineKeyboardButtonData("Настроить уведомления", "notifications")))
+						bot.Send(suggestion)
+					}
 					continue
 				}
 
 				audio := tgbotapi.NewAudio(m.Chat.ID, tgbotapi.FilePath("media/evening/0.mp3"))
 				audio.Title = "Вечерний зикр №1"
 				bot.Send(audio)
+
+				// Показать предложение о уведомлениях если нужно
+				if service.ShouldShowNotificationSuggestion(azkarRepository, m.From.ID, config) {
+					suggestion := tgbotapi.NewMessage(m.Chat.ID,
+						"💡 Хотите получать азкары автоматически каждый день?\nУтренние в 06:00, вечерние в 18:00")
+					suggestion.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+						tgbotapi.NewInlineKeyboardRow(
+							tgbotapi.NewInlineKeyboardButtonData("Настроить уведомления", "notifications")))
+					bot.Send(suggestion)
+				}
 
 			case "settings":
 				response = tgbotapi.NewMessage(m.Chat.ID, "Выберите что требуется выводить")
@@ -130,6 +206,32 @@ func main() {
 			switch {
 			case update.CallbackQuery.Data == "previous" || update.CallbackQuery.Data == "next":
 				service.HandleDirection(bot, update.CallbackQuery, azkarRepository)
+			case update.CallbackQuery.Data == "notifications":
+				config, err := azkarRepository.Config(update.CallbackQuery.From.ID)
+				if err != nil {
+					log.Printf("error get config: %s\n", err)
+					continue
+				}
+				editedMessage := tgbotapi.NewEditMessageText(
+					update.CallbackQuery.Message.Chat.ID,
+					update.CallbackQuery.Message.MessageID,
+					"Настройка уведомлений:")
+				editedMessage.ReplyMarkup = service.NotificationsKeyboard(config)
+				bot.Send(editedMessage)
+				bot.Request(tgbotapi.NewCallback(update.CallbackQuery.ID, ""))
+			case update.CallbackQuery.Data == "back_to_settings":
+				config, err := azkarRepository.Config(update.CallbackQuery.From.ID)
+				if err != nil {
+					log.Printf("error get config: %s\n", err)
+					continue
+				}
+				editedMessage := tgbotapi.NewEditMessageText(
+					update.CallbackQuery.Message.Chat.ID,
+					update.CallbackQuery.Message.MessageID,
+					"Выберите что требуется выводить")
+				editedMessage.ReplyMarkup = service.ConfigKeyboard(config)
+				bot.Send(editedMessage)
+				bot.Request(tgbotapi.NewCallback(update.CallbackQuery.ID, ""))
 			case strings.HasPrefix(update.CallbackQuery.Data, "set"):
 				err := service.HandleConfigEdit(bot, update.CallbackQuery, azkarRepository)
 				if err != nil {

@@ -7,4 +7,5 @@ require (
 	github.com/jmoiron/sqlx v1.3.5 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/mattn/go-sqlite3 v1.14.16 // indirect
+	github.com/robfig/cron/v3 v3.0.1 // indirect
 )
