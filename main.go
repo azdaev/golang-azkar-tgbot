@@ -78,8 +78,10 @@ func main() {
 			switch command := m.Command(); command {
 			case "start":
 				messageText := "السلام عليكم ورحمة الله وبركاته \n\n"
-				messageText += "Прочитать утренние азкары - /morning\nПрочитать вечерние азкары - /evening\nНастроить вывод - /settings"
-				bot.Send(tgbotapi.NewMessage(m.Chat.ID, messageText))
+				messageText += "Выберите время для азкаров:"
+				response := tgbotapi.NewMessage(m.Chat.ID, messageText)
+				response.ReplyMarkup = service.MorningEveningKeyboard
+				bot.Send(response)
 				continue
 
 			case "morning": // TODO: export to another function
@@ -128,6 +130,8 @@ func main() {
 
 		} else if update.CallbackQuery != nil {
 			switch {
+			case update.CallbackQuery.Data == "show_morning" || update.CallbackQuery.Data == "show_evening":
+				service.HandleMorningEvening(bot, update.CallbackQuery, azkarRepository)
 			case update.CallbackQuery.Data == "previous" || update.CallbackQuery.Data == "next":
 				service.HandleDirection(bot, update.CallbackQuery, azkarRepository)
 			case strings.HasPrefix(update.CallbackQuery.Data, "set"):

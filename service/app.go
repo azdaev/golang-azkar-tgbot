@@ -32,6 +32,13 @@ var (
 			tgbotapi.NewInlineKeyboardButtonData("➡️", "next"),
 		),
 	)
+
+	MorningEveningKeyboard = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🌅 Утро", "show_morning"),
+			tgbotapi.NewInlineKeyboardButtonData("🌙 Вечер", "show_evening"),
+		),
+	)
 )
 
 func EnsureUser(repo *repository.AzkarRepository, id int64) error {
@@ -191,4 +198,55 @@ func HandleConfigEdit(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.CallbackQuer
 	bot.Request(tgbotapi.NewCallback(callbackQuery.ID, "Принято"))
 	bot.Send(editedMessage)
 	return
+}
+
+func HandleMorningEvening(bot *tgbotapi.BotAPI, callbackQuery *tgbotapi.CallbackQuery, azkarRepository *repository.AzkarRepository) {
+	userId := callbackQuery.From.ID
+	chatId := callbackQuery.Message.Chat.ID
+	isMorning := callbackQuery.Data == "show_morning"
+
+	config, err := azkarRepository.Config(userId)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	// Set index to 0 (first azkar)
+	if isMorning {
+		err = azkarRepository.SetMorningIndex(userId, 0)
+		bot.Request(tgbotapi.NewCallback(callbackQuery.ID, "Утренние азкары"))
+	} else {
+		err = azkarRepository.SetEveningIndex(userId, 0)
+		bot.Request(tgbotapi.NewCallback(callbackQuery.ID, "Вечерние азкары"))
+	}
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	// Send azkar message
+	response := tgbotapi.NewMessage(chatId, azkar.Wrap(config, 0, isMorning))
+	response.ParseMode = "HTML"
+	response.ReplyMarkup = OnlyNextKeyboard
+	bot.Send(response)
+
+	// Send audio if enabled
+	if !config.Audio {
+		return
+	}
+
+	audioFilePath := "media/"
+	audioTitle := ""
+
+	if isMorning {
+		audioFilePath += "morning/0.mp3"
+		audioTitle = "Утренний зикр №1"
+	} else {
+		audioFilePath += "evening/0.mp3"
+		audioTitle = "Вечерний зикр №1"
+	}
+
+	audio := tgbotapi.NewAudio(chatId, tgbotapi.FilePath(audioFilePath))
+	audio.Title = audioTitle
+	bot.Send(audio)
 }
