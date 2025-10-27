@@ -6,9 +6,12 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go install github.com/pressly/goose/v3/cmd/goose@latest
 
 # Application build stage
-FROM golang:1.23 AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app
+
+# Install build dependencies for CGO (needed for sqlite3)
+RUN apk add --no-cache gcc musl-dev
 
 # Copy go mod files
 COPY go.mod go.sum ./
@@ -20,10 +23,10 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # Copy application source code
 COPY . .
 
-# Build the application with cache mounts (CGO enabled for sqlite3)
+# Build static binary with CGO for sqlite3
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=1 GOOS=linux go build -o main .
+    CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o main .
 
 # Runtime stage
 FROM alpine:latest
