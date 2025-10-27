@@ -1,0 +1,8 @@
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    environment:
+      - TG_BOT_TOKEN=${TG_BOT_TOKEN}
+    volumes:
+      - ./repository:/app/repository
