@@ -12,12 +12,12 @@ import (
 	"github.com/azdaev/azkar-tg-bot/service/audio"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 	"github.com/robfig/cron/v3"
 )
 
 func main() {
-	db, err := sqlx.Connect("sqlite3", "repository/azkar")
+	db, err := sqlx.Connect("sqlite", "repository/azkar")
 	if err != nil {
 		log.Fatalln(err)
 	}

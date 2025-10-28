@@ -3,7 +3,7 @@ package repository
 import (
 	"github.com/azdaev/azkar-tg-bot/repository/models"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 type AzkarRepository struct {
