@@ -45,8 +45,6 @@ func main() {
 
 	_, _ = bot.Request(menu)
 
-	bot.Debug = true
-
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	// Запустить cron scheduler для рассылки азкаров
