@@ -42,8 +42,14 @@ var (
 )
 
 func EnsureUser(repo *repository.AzkarRepository, id int64) error {
-	_, err := repo.User(id)
+	user, err := repo.User(id)
 	if err == nil {
+		// Если пользователь существует, но заблокирован - разблокировать
+		if user.IsBlocked {
+			if err := repo.SetBlocked(id, false); err != nil {
+				return fmt.Errorf("failed to unblock user: %w", err)
+			}
+		}
 		return nil
 	}
 	if err != sql.ErrNoRows {

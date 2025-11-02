@@ -41,5 +41,9 @@ COPY --from=builder /app/main .
 # Копируем миграции
 COPY --from=builder /app/migrations ./migrations
 
-CMD ["./main"]
+# Копируем entrypoint скрипт
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+
+CMD ["./entrypoint.sh"]
 

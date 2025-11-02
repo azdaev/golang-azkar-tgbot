@@ -57,7 +57,17 @@ func (repo *AzkarRepository) InsertConfig(userId int64) error {
 }
 
 func (repo *AzkarRepository) UpdateConfig(userId int64, key string, value string) error {
-	_, err := repo.db.Exec("UPDATE configs SET "+key+" = $1 WHERE user_id = $2", value, userId)
+	// Преобразуем строковые "true"/"false" в int для BOOLEAN колонок SQLite
+	var sqlValue interface{}
+	if value == "true" {
+		sqlValue = 1
+	} else if value == "false" {
+		sqlValue = 0
+	} else {
+		sqlValue = value
+	}
+
+	_, err := repo.db.Exec("UPDATE configs SET "+key+" = $1 WHERE user_id = $2", sqlValue, userId)
 	return err
 }
 
