@@ -3,7 +3,8 @@ set -e
 
 # Запуск миграций
 echo "Running database migrations..."
-goose -dir ./migrations sqlite ./repository/azkar up
+DB_PATH=${DB_PATH:-./repository/azkar}
+goose -dir ./migrations sqlite "$DB_PATH" up
 
 # Запуск приложения
 echo "Starting application..."

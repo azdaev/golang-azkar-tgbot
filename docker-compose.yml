@@ -4,5 +4,6 @@ services:
     restart: unless-stopped
     environment:
       - TG_BOT_TOKEN=${TG_BOT_TOKEN}
+      - DB_PATH=${DB_PATH:-repository/azkar}
     volumes:
       - ./repository:/app/repository
