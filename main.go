@@ -17,7 +17,11 @@ import (
 )
 
 func main() {
-	db, err := sqlx.Connect("sqlite", "repository/azkar")
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "repository/azkar"
+	}
+	db, err := sqlx.Connect("sqlite", dbPath)
 	if err != nil {
 		log.Fatalln(err)
 	}
