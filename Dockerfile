@@ -1,12 +1,12 @@
 # Stage 1: Goose builder (для миграций)
-FROM golang:1.24-alpine AS goose-builder
+FROM golang:1.25-alpine3.22 AS goose-builder
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go install github.com/pressly/goose/v3/cmd/goose@latest
 
 # Stage 2: Application builder
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine3.22 AS builder
 
 WORKDIR /app
 
@@ -25,7 +25,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -a -ldflags="-s -w" -o main .
 
 # Stage 3: Runtime
-FROM alpine:latest
+FROM alpine:3.19
 
 WORKDIR /app
 
@@ -46,4 +46,3 @@ COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
 
 CMD ["./entrypoint.sh"]
-
